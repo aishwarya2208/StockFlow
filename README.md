@@ -38,7 +38,7 @@ In high-volume e-commerce and retail environments, inventory integrity is paramo
 StockFlow addresses these real-world challenges with:
 - **Separation of Stock States**: Differentiates between physical inventory (`quantityOnHand`), locked reservations (`reservedQuantity`), and real-time fulfillable stock (`availableQuantity = quantityOnHand - reservedQuantity`).
 - **Multi-Warehouse Isolation**: Independent inventory tracking across multiple distribution hubs and fulfillment centers.
-- **Atomic Order Lifecycle**: Validated state machine ensuring orders progress strictly through `CREATED` $\rightarrow$ `CONFIRMED` $\rightarrow$ `COMPLETED` (or `CANCELLED`), releasing or deducting stock atomically.
+- **Atomic Order Lifecycle**: Validated state machine ensuring orders progress strictly through `CREATED` → `CONFIRMED` → `COMPLETED` (or `CANCELLED`), releasing or deducting stock atomically.
 - **Audit Traceability**: Immutable event log recording every stock change with movement types (`INBOUND`, `OUTBOUND`, `RESERVATION`, `RELEASE`, `ADJUSTMENT`), before/after balances, and user attribution.
 
 ---
@@ -69,36 +69,36 @@ com.stockflow
 ### High-Level Architecture
 
 ```mermaid
-graph TD
-    Client[Client / Frontend / Postman] -->|HTTP REST / Bearer JWT| SecurityFilter[JwtAuthenticationFilter]
-    SecurityFilter --> SecurityContext[Spring Security Context]
-    SecurityContext --> Controllers[REST Controllers]
+flowchart TD
+    Client["Client / Frontend / Postman"] -->|HTTP REST / Bearer JWT| SecurityFilter["JwtAuthenticationFilter"]
+    SecurityFilter --> SecurityContext["Spring Security Context"]
+    SecurityContext --> Controllers["REST Controllers"]
     
-    subgraph ControllersLayer [Controller Layer]
-        AuthController[AuthController]
-        ProductController[ProductController]
-        WarehouseController[WarehouseController]
-        InventoryController[InventoryController]
-        OrderController[OrderController]
+    subgraph ControllersLayer ["Controller Layer"]
+        AuthController["AuthController"]
+        ProductController["ProductController"]
+        WarehouseController["WarehouseController"]
+        InventoryController["InventoryController"]
+        OrderController["OrderController"]
     end
     
-    ControllersLayer --> ServicesLayer [Service Layer - Transaction Boundaries]
+    Controllers --> ControllersLayer
     
-    subgraph ServicesLayer [Service Layer]
-        UserService[UserService]
-        ProductService[ProductService]
-        WarehouseService[WarehouseService]
-        InventoryService[InventoryService - Row Locks]
-        OrderService[OrderService - Atomic Workflow]
+    subgraph ServicesLayer ["Service Layer (Transaction Boundaries)"]
+        UserService["UserService"]
+        ProductService["ProductService"]
+        WarehouseService["WarehouseService"]
+        InventoryService["InventoryService (Row Locks)"]
+        OrderService["OrderService (Atomic Workflow)"]
     end
     
-    ServicesLayer --> RepositoriesLayer [Spring Data JPA Repositories]
+    ControllersLayer --> ServicesLayer
     
-    subgraph Storage [Database Layer]
-        PostgreSQL[(PostgreSQL 16 Engine)]
+    subgraph Storage ["Database Layer"]
+        PostgreSQL[("PostgreSQL 16 Engine")]
     end
     
-    RepositoriesLayer --> PostgreSQL
+    ServicesLayer --> PostgreSQL
 ```
 
 ---
@@ -216,15 +216,15 @@ erDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> CREATED : Place Order (POST /api/v1/orders)\n- Atomically reserves stock\n- Logs RESERVATION movement
+    [*] --> CREATED : Place Order (Reserves Stock)
     
-    CREATED --> CONFIRMED : Confirm Order (POST /api/v1/orders/{id}/confirm)\n- Verifies payment / order approval
-    CREATED --> CANCELLED : Cancel Order (POST /api/v1/orders/{id}/cancel)\n- Releases reserved stock\n- Logs RELEASE movement
+    CREATED --> CONFIRMED : Confirm Order (Payment Verified)
+    CREATED --> CANCELLED : Cancel Order (Releases Stock)
     
-    CONFIRMED --> COMPLETED : Complete Order (POST /api/v1/orders/{id}/complete)\n- Deducts physical stock\n- Logs OUTBOUND movement
-    CONFIRMED --> CANCELLED : Cancel Order (POST /api/v1/orders/{id}/cancel)\n- Releases reserved stock\n- Logs RELEASE movement
+    CONFIRMED --> COMPLETED : Complete Order (Deducts Stock)
+    CONFIRMED --> CANCELLED : Cancel Order (Releases Stock)
 
-    COMPLETED --> [*] : Terminal State (Cannot Cancel)
+    COMPLETED --> [*] : Terminal (Cannot Cancel)
     CANCELLED --> [*] : Terminal State
 ```
 
